@@ -9,7 +9,8 @@ import (
 )
 
 type FileWatcher struct {
-	Handler		WatchHandler
+	Handler     WatchHandler
+	ExcludeDirs []string
 
 	watcher *fsnotify.Watcher
 }
@@ -40,7 +41,7 @@ func (fw *FileWatcher) Watch() error {
 
 			if event.Op&fsnotify.Write == fsnotify.Write {
 				if filepath.Ext(event.Name) == ".go" {
-					log.Println("modified file:", event.Name,  " Rebuilding")
+					log.Println("modified file:", event.Name, " Rebuilding")
 					fw.Handler.OnFileModified(event.Name)
 				}
 			}
@@ -49,7 +50,6 @@ func (fw *FileWatcher) Watch() error {
 		}
 	}
 }
-
 
 func (fw *FileWatcher) subscribeToDirRecursively(dir string) error {
 	f, err := os.Open(dir)
@@ -72,8 +72,16 @@ func (fw *FileWatcher) subscribeToDirRecursively(dir string) error {
 	}
 
 	fw.subscribeToDir(dir)
+
+fileIter:
 	for _, f := range fInfo {
+		// TODO: Ignore list
 		if f.IsDir() {
+			for _, excludeDir := range fw.ExcludeDirs {
+				if match, _ := filepath.Match(excludeDir, f.Name()); match {
+					continue fileIter
+				}
+			}
 			if err := fw.subscribeToDirRecursively(filepath.Join(dir, f.Name())); err != nil {
 				return err
 			}

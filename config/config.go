@@ -27,9 +27,8 @@ func FromWasmDevFile() (*Config, error) {
 }
 
 type Config struct {
-	globals		starlark.StringDict
+	globals starlark.StringDict
 }
-
 
 func (c *Config) readFromFile(filename string) error {
 	f, err := os.Open(filename)
@@ -63,13 +62,13 @@ func (c *Config) readFromReader(name string, r io.Reader) error {
 }
 
 // GetString returns the value of a string path.
-func (c *Config) GetString(name string, def string) string {
-	val, hasVal := c.resolveValueOfPath(name)
-	if !hasVal {
+func (c *Config) GetString(name string, def string, opts ...ValueOption) string {
+	resolvedVal := c.resolveValueOfPath(name, opts)
+	if !resolvedVal.isSet {
 		return def
 	}
 
-	strVal, wasStringable := starlark.AsString(val)
+	strVal, wasStringable := starlark.AsString(resolvedVal.value)
 	if !wasStringable {
 		return def
 	}
@@ -77,18 +76,26 @@ func (c *Config) GetString(name string, def string) string {
 	return strVal
 }
 
-func (c *Config) GetBool(name string, def bool) bool {
-	val, hasVal := c.resolveValueOfPath(name)
-	if !hasVal {
+func (c *Config) GetBool(name string, def bool, opts ...ValueOption) bool {
+	resolvedVal := c.resolveValueOfPath(name, opts)
+	if !resolvedVal.isSet {
 		return def
 	}
 
-	return bool(val.Truth())
+	return bool(resolvedVal.value.Truth())
 }
 
 // valueOfPath looks up a value based on the path.  Paths a logical and are separated by dots.
-func (c *Config) resolveValueOfPath(name string) (starlark.Value, bool) {
+func (c *Config) resolveValueOfPath(name string, opts []ValueOption) ResolvedValue {
 	realName := strings.Replace(name, ".", "_", -1)
 	val, hasVal := c.globals[realName]
-	return val, hasVal
+	resolvedValue := ResolvedValue{val, hasVal}
+
+	for _, opt := range opts {
+		resolvedValue = opt(resolvedValue)
+	}
+
+	return resolvedValue
 }
+
+

@@ -14,7 +14,7 @@ import (
 )
 
 var flagNoDevServer = flag.Bool("noserve", false, "Do not setup a dev server")
-var flagOut = flag.String("o", "main.wasm", "Target WASM output file")
+var flagOut = flag.String("o", "", "Target WASM output file (default = main.wasm)")
 
 func main() {
 	flag.Parse()
@@ -59,7 +59,7 @@ func main() {
 				{Href: "/styles.css", Source: "styles.css"},
 			},
 
-			TargetWasm: "main.wasm",
+			TargetWasm: conf.GetString("build.target", "main.wasm", config.WithStringOverride(*flagOut)),
 		})
 
 		go func() {
@@ -68,14 +68,16 @@ func main() {
 		}()
 	}
 
-	buildListener()
+	buildListener(conf)
 }
 
 // Build listener
 
-func buildListener() {
+func buildListener(conf *config.Config) {
+	targetWasm := conf.GetString("build.target", "main.wasm", config.WithStringOverride(*flagOut))
+
 	builder := goBuilder{
-		builder: &gobuilder.GoBuilder{ TargetWasm: *flagOut },
+		builder: &gobuilder.GoBuilder{ TargetWasm: targetWasm },
 	}
 
 	// Run the build first
@@ -83,6 +85,9 @@ func buildListener() {
 
 	fw := filewatcher.New()
 	fw.Handler = builder
+	fw.ExcludeDirs = []string{
+		".*",
+	}
 
 	if err := fw.Watch(); err != nil {
 		log.Fatal(err)
