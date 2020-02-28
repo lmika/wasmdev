@@ -36,9 +36,8 @@ func (fw *FileWatcher) Watch() error {
 		select {
 		case event := <-fw.watcher.Events:
 
-			// If it's a new directory, subscribe
+			// TODO: If it's a new directory, subscribe
 
-			//log.Println("event:", event)
 			if event.Op&fsnotify.Write == fsnotify.Write {
 				if filepath.Ext(event.Name) == ".go" {
 					log.Println("modified file:", event.Name,  " Rebuilding")

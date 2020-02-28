@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/lmika/wasmdev/config"
 	"github.com/lmika/wasmdev/devserver"
 	"github.com/lmika/wasmdev/filewatcher"
 	"github.com/lmika/wasmdev/gobuilder"
@@ -18,6 +19,11 @@ var flagOut = flag.String("o", "main.wasm", "Target WASM output file")
 func main() {
 	flag.Parse()
 
+	conf, err := config.FromWasmDevFile()
+	if err != nil {
+		log.Println(err)
+	}
+
 	wasmExec := filepath.Join(runtime.GOROOT(), "misc/wasm/wasm_exec.js")
 	if _, err := os.Stat(wasmExec); err != nil {
 		log.Fatalf("cannot stat '%v': %v", wasmExec, err)
@@ -25,7 +31,7 @@ func main() {
 	log.Printf("Using wasm_exec.js at %v", wasmExec)
 
 	// Dev server
-	if !*flagNoDevServer {
+	if !*flagNoDevServer && conf.GetBool("devserver.enabled", true) {
 		devServer := devserver.New(devserver.Config{
 			Scripts: []devserver.Resource{
 				// Extra script files
@@ -58,7 +64,7 @@ func main() {
 
 		go func() {
 			log.Println("Started dev server on :8080")
-			http.ListenAndServe(`:8080`, devServer)
+			http.ListenAndServe(conf.GetString("devserver.listen", ":8080"), devServer)
 		}()
 	}
 

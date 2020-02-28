@@ -42,7 +42,7 @@ func (ds *DevServer) setupMux() {
 	ds.setupHandlersForResources(ds.config.Stylesheets)
 
 	ds.mux.Handle("/main.wasm", serveStaticFile(ds.config.TargetWasm, false))
-	ds.mux.Handle("/", exactPathMux("/", http.HandlerFunc(serveIndex), http.FileServer(http.Dir(`.`))))
+	ds.mux.Handle("/", exactPathMux("/", serveTemplate(indexTemplate, ds.config), http.FileServer(http.Dir(`.`))))
 }
 
 func (ds *DevServer) setupHandlersForResources(resources []Resource) {
