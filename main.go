@@ -76,15 +76,25 @@ func main() {
 func buildListener(conf *config.Config) {
 	targetWasm := conf.GetString("build.target", "main.wasm", config.WithStringOverride(*flagOut))
 
-	builder := goBuilder{
-		builder: &gobuilder.GoBuilder{ TargetWasm: targetWasm },
+	testPlugin, err := gobuilder.LoadPluginListener("/Users/leonmika/src/tools/wasmdev-ledstatus/wasmdev-ledstatus.so")
+	if err != nil {
+		log.Println(err)
 	}
 
-	// Run the build first
-	builder.builder.Build()
+	builder := &gobuilder.GoBuilder{
+		TargetWasm: targetWasm,
+		Hook: testPlugin,
+	}
+	continuousBuilder := &gobuilder.ContinuousGoBuilder{
+		Builder: builder,
+	}
 
+	// Do the initial build first
+	builder.Build()
+
+	// Start watching for updates
 	fw := filewatcher.New()
-	fw.Handler = builder
+	fw.Handler = continuousBuilder
 	fw.ExcludeDirs = []string{
 		".*",
 	}
@@ -92,12 +102,4 @@ func buildListener(conf *config.Config) {
 	if err := fw.Watch(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-type goBuilder struct{
-	builder	*gobuilder.GoBuilder
-}
-
-func (gb goBuilder) OnFileModified(file string) {
-	gb.builder.Build()
 }

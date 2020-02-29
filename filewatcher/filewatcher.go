@@ -32,6 +32,9 @@ func (fw *FileWatcher) Watch() error {
 		return err
 	}
 
+	fw.Handler.OnStartWatching()
+	defer fw.Handler.OnStopWatching()
+
 	log.Println("Scanning for files")
 	for {
 		select {
