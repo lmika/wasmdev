@@ -13,6 +13,7 @@ import (
 	"runtime"
 )
 
+var flagServe = flag.String("serve", ":8080", "Host:Port to bind the dev server")
 var flagNoDevServer = flag.Bool("noserve", false, "Do not setup a dev server")
 var flagOut = flag.String("o", "", "Target WASM output file (default = main.wasm)")
 
@@ -24,6 +25,7 @@ func main() {
 		log.Println(err)
 	}
 
+	// TODO: this needs to be moved somewhere else
 	wasmExec := filepath.Join(runtime.GOROOT(), "misc/wasm/wasm_exec.js")
 	if _, err := os.Stat(wasmExec); err != nil {
 		log.Fatalf("cannot stat '%v': %v", wasmExec, err)
@@ -34,27 +36,11 @@ func main() {
 	if !*flagNoDevServer && conf.GetBool("devserver.enabled", true) {
 		devServer := devserver.New(devserver.Config{
 			Scripts: []devserver.Resource{
-				// Extra script files
-				{Href: "http://esironal.github.io/cmtouch/lib/codemirror.js"},
-				{Href: "http://esironal.github.io/cmtouch/addon/hint/show-hint.js"},
-				{Href: "http://esironal.github.io/cmtouch/addon/hint/xml-hint.js"},
-				{Href: "http://esironal.github.io/cmtouch/addon/hint/html-hint.js"},
-				{Href: "http://esironal.github.io/cmtouch/mode/xml/xml.js"},
-				{Href: "http://esironal.github.io/cmtouch/mode/javascript/javascript.js"},
-				{Href: "http://esironal.github.io/cmtouch/mode/css/css.js"},
-				{Href: "http://esironal.github.io/cmtouch/mode/htmlmixed/htmlmixed.js"},
-				{Href: "http://esironal.github.io/cmtouch/addon/selection/active-line.js"},
-				{Href: "http://esironal.github.io/cmtouch/addon/edit/matchbrackets.js"},
-
 				// The WASM execution script file
 				{Href: "/wasm_exec.js", Source: wasmExec},
 			},
 
 			Stylesheets: []devserver.Resource{
-				{Href: "http://esironal.github.io/cmtouch/lib/codemirror.css"},
-				{Href: "http://esironal.github.io/cmtouch/addon/hint/show-hint.css"},
-				{Href: "http://esironal.github.io/cmtouch/theme/neonsyntax.css"},
-
 				// Local stylesheet
 				{Href: "/styles.css", Source: "styles.css"},
 			},
@@ -63,8 +49,10 @@ func main() {
 		})
 
 		go func() {
-			log.Println("Started dev server on :8080")
-			http.ListenAndServe(conf.GetString("devserver.listen", ":8080"), devServer)
+			bindAddr := conf.GetString("devserver.listen", ":8080", config.WithStringOverride(*flagServe))
+
+			log.Printf("Started dev server on %v", bindAddr)
+			http.ListenAndServe(bindAddr, devServer)
 		}()
 	}
 
@@ -76,14 +64,8 @@ func main() {
 func buildListener(conf *config.Config) {
 	targetWasm := conf.GetString("build.target", "main.wasm", config.WithStringOverride(*flagOut))
 
-	testPlugin, err := gobuilder.LoadPluginListener("/Users/leonmika/src/tools/wasmdev-ledstatus/wasmdev-ledstatus.so")
-	if err != nil {
-		log.Println(err)
-	}
-
 	builder := &gobuilder.GoBuilder{
 		TargetWasm: targetWasm,
-		Hook: testPlugin,
 	}
 	continuousBuilder := &gobuilder.ContinuousGoBuilder{
 		Builder: builder,
