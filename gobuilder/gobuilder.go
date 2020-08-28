@@ -1,39 +1,47 @@
 package gobuilder
 
 import (
-	"log"
-	"os"
-	"os/exec"
+	"context"
 )
 
 type GoBuilder struct {
 	TargetWasm string
 
+	Pipeline Pipeline
 	Hook BuildHook
 }
 
-func (gb *GoBuilder) Build() {
-	// TODO: cwd
-	cmd := exec.Command("go", "build", "-o", gb.TargetWasm, ".")
-	cmd.Env = append(os.Environ(),
-		"GOOS=js",
-		"GOARCH=wasm",
-	)
+func (gb *GoBuilder) Build() error {
+	ctx := WithPipelineEnv(context.Background(), &Env{
+		TargetWasm: gb.TargetWasm,
+	})
 
+	return gb.withHooks(ctx, func(ctx context.Context) error {
+		for _, pipeline := range gb.Pipeline {
+			if err := pipeline.Exec(ctx); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (gb *GoBuilder) withHooks(ctx context.Context, buildFn func(ctx context.Context) error) error {
 	if gb.Hook != nil {
 		gb.Hook.OnBuildTriggered()
 	}
 
-	outErr, err := cmd.CombinedOutput()
+	err := buildFn(ctx)
+
 	if err != nil {
-		log.Printf("go build error:\n%v", string(outErr))
 		if gb.Hook != nil {
 			gb.Hook.OnBuildFailed()
 		}
-	} else {
-		log.Println("rebuilt")
-		if gb.Hook != nil {
-			gb.Hook.OnBuildSuccess()
-		}
+		return err
 	}
+
+	if gb.Hook != nil {
+		gb.Hook.OnBuildSuccess()
+	}
+	return nil
 }

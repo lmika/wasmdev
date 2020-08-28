@@ -20,6 +20,9 @@ type Config struct {
 	Stylesheets []Resource
 	Scripts     []Resource
 
+	// Bind address
+	BindAddress string
+
 	// Target WASM file
 	TargetWasm string
 }

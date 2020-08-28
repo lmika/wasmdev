@@ -1,5 +1,7 @@
 package gobuilder
 
+import "log"
+
 type ContinuousGoBuilder struct {
 	Builder *GoBuilder
 	Hooks   ContinuousBuildHooks
@@ -18,5 +20,11 @@ func (cb *ContinuousGoBuilder) OnStopWatching() {
 }
 
 func (cb *ContinuousGoBuilder) OnFileModified(file string) {
-	cb.Builder.Build()
+	log.Println("Starting build")
+
+	if err := cb.Builder.Build(); err != nil {
+		log.Printf("Build failed: %v", err)
+	} else {
+		log.Println("Build complete")
+	}
 }
